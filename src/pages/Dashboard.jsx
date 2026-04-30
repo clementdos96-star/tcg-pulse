@@ -1,4 +1,3 @@
-// src/pages/Dashboard.jsx — V6
 import { useState, useMemo } from 'react'
 import { Plus, Zap, Package, ScanLine, LogOut, RefreshCw, Sparkles } from 'lucide-react'
 import { useCollection } from '../hooks/useCollection'
@@ -48,7 +47,7 @@ export function Dashboard({ userId, userEmail }) {
 
   if (showScan) {
     return <ScanPage onClose={() => setShowScan(false)}
-      onScanned={(cardInfo) => { success(`${getDisplayName(cardInfo) || 'Carte'} ajoutée`); setShowScan(false) }}
+      onScanned={(cardInfo) => { success(`${getDisplayName(cardInfo) || 'Carte'} ajoutée à ta collection`); setShowScan(false) }}
       onAddExisting={addExistingCard} />
   }
 
@@ -79,12 +78,15 @@ export function Dashboard({ userId, userEmail }) {
             <p className="mt-3 text-sm font-mono" style={{ color: 'var(--muted)' }}>
               {stats.totalItems} exemplaire{stats.totalItems > 1 ? 's' : ''} · {stats.totalCards} carte{stats.totalCards > 1 ? 's' : ''} unique{stats.totalCards > 1 ? 's' : ''}
             </p>
-          ) : (<p className="mt-3 text-sm" style={{ color: 'var(--muted)' }}>Commence par scanner ou ajouter ta 1<sup>ère</sup> carte ✨</p>)}
+          ) : (
+            <p className="mt-3 text-sm" style={{ color: 'var(--muted)' }}>Commence par scanner ou ajouter ta 1<sup>ère</sup> carte ✨</p>
+          )}
         </section>
         {stats.totalCards > 0 && (
           <section className="grid grid-cols-2 gap-3">
             <StatCard label="Cartes uniques" value={stats.totalCards} sub={`${stats.totalItems} exemplaire${stats.totalItems > 1 ? 's' : ''}`} delay={0.1} />
-            <StatCard label="Top carte" value={formatPrice(stats.topCard?.price_trend, stats.topCard?.price_currency || 'EUR')}
+            <StatCard label="Top carte"
+              value={formatPrice(stats.topCard?.price_trend, stats.topCard?.price_currency || 'EUR')}
               sub={getDisplayName(stats.topCard) || '—'} delay={0.2}
               imageUrl={stats.topCard?.image_url} imageAlt={getDisplayName(stats.topCard)}
               onClick={stats.topCard ? () => setEditingEntry(stats.topCard) : null} />
@@ -97,7 +99,7 @@ export function Dashboard({ userId, userEmail }) {
               style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
               {showCharts ? '↑ Masquer les graphiques' : '↓ Afficher les graphiques'}
             </button>
-            {showCharts && (<div className="mt-3 animate-fade-up"><PortfolioCharts collection={collection} /></div>)}
+            {showCharts && <div className="mt-3 animate-fade-up"><PortfolioCharts collection={collection} /></div>}
           </section>
         )}
         <section className="animate-fade-up anim-delay-3">
@@ -112,39 +114,33 @@ export function Dashboard({ userId, userEmail }) {
             <FilterBar query={query} onQuery={setQuery} sort={sort} onSort={setSort} total={collection.length} filtered={filtered.length} />
           </section>
         )}
-        {error && (<div className="rounded-xl px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)' }}>⚠️ {error}</div>)}
+        {error && <div className="rounded-xl px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)' }}>⚠️ {error}</div>}
         <section className="animate-fade-up anim-delay-4 pb-4">
           {loading ? (
-            <div className="space-y-2">{[1, 2, 3].map(i => (<div key={i} className="rounded-2xl h-24 animate-pulse" style={{ background: 'var(--card)', border: '1px solid var(--border)' }} />))}</div>
+            <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="rounded-2xl h-24 animate-pulse" style={{ background: 'var(--card)', border: '1px solid var(--border)' }} />)}</div>
           ) : filtered.length === 0 ? (
-            <EmptyState isEmpty={collection.length === 0} activeGame={activeGame} query={query}
-              onScan={() => setShowScan(true)} onAdd={() => setShowModal(true)} />
+            <EmptyState isEmpty={collection.length === 0} activeGame={activeGame} query={query} onScan={() => setShowScan(true)} onAdd={() => setShowModal(true)} />
           ) : (
-            <div className="space-y-2">{filtered.map(card => (<CollectionRow key={card.id} card={card}
-              onEdit={() => setEditingEntry(card)} onRemove={(e) => { e.stopPropagation(); handleRemove(card.id, getDisplayName(card)) }} />))}</div>
+            <div className="space-y-2">
+              {filtered.map(card => <CollectionRow key={card.id} card={card} onEdit={() => setEditingEntry(card)} onRemove={(e) => { e.stopPropagation(); handleRemove(card.id, getDisplayName(card)) }} />)}
+            </div>
           )}
         </section>
       </main>
       <footer className="sticky bottom-0 px-4 pb-6 pt-3 glass" style={{ borderTop: '1px solid var(--border)' }}>
         <div className="flex gap-2 max-w-md mx-auto">
-          <button onClick={() => setShowScan(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-display font-bold text-base transition-all active:scale-95"
-            style={{ background: 'var(--card)', border: '1.5px solid var(--accent)', color: 'var(--accent)' }}>
-            <ScanLine size={18} />Scanner
-          </button>
-          <button onClick={() => setShowModal(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-display font-bold text-base transition-all active:scale-95"
-            style={{ background: 'linear-gradient(135deg,#7C3AED,#9333EA)', color: 'white', boxShadow: '0 4px 24px rgba(124,58,237,0.4)' }}>
-            <Plus size={18} strokeWidth={2.5} />Ajouter
-          </button>
+          <button onClick={() => setShowScan(true)} className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-display font-bold text-base transition-all active:scale-95"
+            style={{ background: 'var(--card)', border: '1.5px solid var(--accent)', color: 'var(--accent)' }}><ScanLine size={18} />Scanner</button>
+          <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-display font-bold text-base transition-all active:scale-95"
+            style={{ background: 'linear-gradient(135deg,#7C3AED,#9333EA)', color: 'white', boxShadow: '0 4px 24px rgba(124,58,237,0.4)' }}><Plus size={18} strokeWidth={2.5} />Ajouter</button>
         </div>
       </footer>
-      {showModal && (<AddCardModal onClose={() => setShowModal(false)}
+      {showModal && <AddCardModal onClose={() => setShowModal(false)}
         onAdd={async (data) => { const { error: err } = await addCard(data); if (!err) { setShowModal(false); success(`${data.name} ajoutée`) } else toastError(err); return { error: err } }}
-        onAddExisting={async (data) => { const { error: err } = await addExistingCard(data); if (!err) { setShowModal(false); success(`${getDisplayName(data.cardInfo) || 'Carte'} ajoutée`) } else toastError(err); return { error: err } }} />)}
-      {editingEntry && (<EditEntryModal entry={editingEntry} onClose={() => setEditingEntry(null)}
+        onAddExisting={async (data) => { const { error: err } = await addExistingCard(data); if (!err) { setShowModal(false); success(`${getDisplayName(data.cardInfo) || 'Carte'} ajoutée`) } else toastError(err); return { error: err } }} />}
+      {editingEntry && <EditEntryModal entry={editingEntry} onClose={() => setEditingEntry(null)}
         onSave={async (updates) => { const { error: err } = await updateCard(editingEntry.id, updates); if (!err) { setEditingEntry(null); success(`${getDisplayName(editingEntry)} mise à jour`) } else toastError(err); return { error: err } }}
-        onDelete={() => handleRemove(editingEntry.id, getDisplayName(editingEntry))} />)}
+        onDelete={() => handleRemove(editingEntry.id, getDisplayName(editingEntry))} />}
       <ToastContainer toasts={toasts} onDismiss={dismiss} onAction={handleAction} />
     </div>
   )
@@ -161,15 +157,15 @@ function CollectionRow({ card, onEdit, onRemove }) {
       </button>
       <button onClick={onEdit} className="flex-1 min-w-0 text-left transition-all active:opacity-70">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <GameIcon game={card.game} size={11} /><RarityChip rarity={card.rarity} />
+          <GameIcon game={card.game} size={11} />
+          <RarityChip rarity={card.rarity} />
           <span className="text-[10px] font-mono uppercase" style={{ color: 'var(--muted)' }}>{card.condition}</span>
         </div>
         <p className="font-medium text-sm truncate" style={{ color: 'var(--text)' }}>{getDisplayName(card)}</p>
         <p className="text-[11px] font-mono mt-0.5 truncate" style={{ color: 'var(--muted)' }}>{card.card_number} · ×{card.quantity}</p>
         <p className="text-sm font-mono font-semibold mt-1" style={{ color: 'var(--gold)' }}>{formatPrice(totalValue, currency)}</p>
       </button>
-      <button onClick={onRemove} aria-label="Retirer"
-        className="self-start w-7 h-7 rounded-full flex items-center justify-center text-base transition-all active:scale-90"
+      <button onClick={onRemove} aria-label="Retirer" className="self-start w-7 h-7 rounded-full flex items-center justify-center text-base transition-all active:scale-90"
         style={{ color: 'var(--muted)', background: 'transparent' }}>×</button>
     </div>
   )
