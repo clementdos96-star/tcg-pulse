@@ -1,58 +1,43 @@
-// src/hooks/useScanner.js — V3
+// useScanner V4 — Claude Vision API au lieu de Tesseract
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '../services/supabase'
-
-const SCAN_INTERVAL_MS = 2500
-const CROP = { x: 0.05, y: 0.55, w: 0.9, h: 0.4 }
 
 export function useScanner({ enabled = true, onMatch = null } = {}) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
-  const workerRef = useRef(null)
-  const intervalRef = useRef(null)
-  const lastSentRef = useRef('')
   const [error, setError] = useState(null)
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [debug, setDebug] = useState({ ocr: '', matches: 0 })
+  const [debug, setDebug] = useState({ vision: null })
 
-  const scanFrame = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !workerRef.current) return
+  const capture = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || busy) return null
     const v = videoRef.current
     const cv = canvasRef.current
-    if (v.readyState !== 4 || busy) return
+    if (v.readyState !== 4) return null
     setBusy(true)
     try {
-      const cw = Math.round(v.videoWidth * CROP.w)
-      const ch = Math.round(v.videoHeight * CROP.h)
-      const cx = Math.round(v.videoWidth * CROP.x)
-      const cy = Math.round(v.videoHeight * CROP.y)
-      cv.width = cw; cv.height = ch
-      const ctx = cv.getContext('2d', { willReadFrequently: true })
-      ctx.drawImage(v, cx, cy, cw, ch, 0, 0, cw, ch)
-      const img = ctx.getImageData(0, 0, cw, ch)
-      const d = img.data
-      for (let i = 0; i < d.length; i += 4) {
-        const g = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114
-        const a = g > 128 ? 255 : 0
-        d[i] = d[i + 1] = d[i + 2] = a
-      }
-      ctx.putImageData(img, 0, 0)
-      const { data: { text } } = await workerRef.current.recognize(cv)
-      const cleaned = text.replace(/\s+/g, ' ').trim()
-      if (!cleaned || cleaned === lastSentRef.current) {
-        setBusy(false)
-        return
-      }
-      lastSentRef.current = cleaned
-      const { data: matches } = await supabase.rpc('scan_match_cards', { ocr_text: cleaned, limit_results: 5 })
-      setDebug({ ocr: cleaned.slice(0, 60), matches: matches?.length || 0 })
-      if (matches && matches.length > 0) {
+      cv.width = v.videoWidth
+      cv.height = v.videoHeight
+      const ctx = cv.getContext('2d')
+      ctx.drawImage(v, 0, 0, cv.width, cv.height)
+      const dataUrl = cv.toDataURL('image/jpeg', 0.85)
+      const url = `${supabase.supabaseUrl}/functions/v1/scan-card-vision`
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_base64: dataUrl, media_type: 'image/jpeg' }),
+      })
+      const data = await res.json()
+      setDebug({ vision: data.vision })
+      if (data.matches?.length > 0) {
         if (typeof navigator.vibrate === 'function') navigator.vibrate(40)
-        onMatch?.(matches)
+        onMatch?.(data.matches)
       }
+      return data.matches || []
     } catch (e) {
-      console.warn('scan err:', e.message)
+      console.warn('vision err:', e.message)
+      return []
     } finally {
       setBusy(false)
     }
@@ -74,17 +59,7 @@ export function useScanner({ enabled = true, onMatch = null } = {}) {
           videoRef.current.srcObject = stream
           await videoRef.current.play().catch(() => {})
         }
-        const Tesseract = await import('tesseract.js')
-        if (!mounted) return
-        const worker = await Tesseract.createWorker('eng', 1)
-        await worker.setParameters({
-          tessedit_char_whitelist: '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-          tessedit_pageseg_mode: '7',
-        })
-        if (!mounted) { await worker.terminate(); return }
-        workerRef.current = worker
         setReady(true)
-        intervalRef.current = setInterval(scanFrame, SCAN_INTERVAL_MS)
       } catch (e) {
         if (!mounted) return
         if (e.name === 'NotAllowedError') setError('Permission caméra refusée')
@@ -95,11 +70,9 @@ export function useScanner({ enabled = true, onMatch = null } = {}) {
     init()
     return () => {
       mounted = false
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      if (workerRef.current) workerRef.current.terminate().catch(() => {})
       if (stream) stream.getTracks().forEach(t => t.stop())
     }
-  }, [enabled, scanFrame])
+  }, [enabled])
 
-  return { videoRef, canvasRef, ready, busy, error, debug }
+  return { videoRef, canvasRef, ready, busy, error, debug, capture }
 }
