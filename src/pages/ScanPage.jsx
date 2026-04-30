@@ -1,4 +1,4 @@
-// src/pages/ScanPage.jsx — V4
+// src/pages/ScanPage.jsx — V4 (auto-scan continu)
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { X, Camera, Loader, Check, Search } from 'lucide-react'
 import { useScanner } from '../hooks/useScanner'
@@ -14,13 +14,21 @@ export function ScanPage({ onClose, onScanned, onAddExisting }) {
   const [addedCount, setAddedCount] = useState(0)
   const [manualQuery, setManualQuery] = useState('')
   const lastVibrateRef = useRef(0)
-  const handleMatch = useCallback((found) => { setMatches(found) }, [])
+
+  const handleMatch = useCallback((found) => {
+    const now = Date.now()
+    if (now - lastVibrateRef.current > 2000) lastVibrateRef.current = now
+    setMatches(found)
+  }, [])
+
   const { videoRef, canvasRef, ready, busy, error, debug } = useScanner({ enabled: true, onMatch: handleMatch })
   const { results: manualResults, search: manualSearch, clear: clearManual } = useCardSearch()
+
   useEffect(() => {
     if (manualQuery.trim().length >= 2) manualSearch(manualQuery)
     else clearManual()
   }, [manualQuery, manualSearch, clearManual])
+
   const suggestions = manualQuery.trim().length >= 2 ? manualResults : matches
 
   async function handleAdd(card) {
@@ -44,7 +52,8 @@ export function ScanPage({ onClose, onScanned, onAddExisting }) {
         <h1 className="font-display font-bold text-xl mb-2 text-center">Caméra inaccessible</h1>
         <p className="text-sm font-mono px-4 py-3 rounded-xl mb-6 max-w-sm text-center"
           style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)' }}>{error}</p>
-        <button onClick={onClose} className="px-6 py-3 rounded-xl font-display font-bold transition-all active:scale-95"
+        <button onClick={onClose}
+          className="px-6 py-3 rounded-xl font-display font-bold transition-all active:scale-95"
           style={{ background: 'var(--accent)', color: 'white' }}>Retour</button>
       </div>
     )
@@ -57,23 +66,20 @@ export function ScanPage({ onClose, onScanned, onAddExisting }) {
         <canvas ref={canvasRef} className="hidden" />
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 z-10">
           <button onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
-            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-            <X size={18} color="white" />
-          </button>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full"
-            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
+            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}><X size={18} color="white" /></button>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
             {!ready ? (<><Loader size={12} color="white" className="animate-spin" /><span className="text-xs font-mono text-white">Init…</span></>)
-            : busy ? (<><Loader size={12} color="#7C3AED" className="animate-spin" /><span className="text-xs font-mono text-white">Analyse…</span></>)
-            : (<><span className="w-2 h-2 rounded-full" style={{ background: 'var(--green)' }} /><span className="text-xs font-mono text-white">Scan auto</span></>)}
+              : busy ? (<><Loader size={12} color="#7C3AED" className="animate-spin" /><span className="text-xs font-mono text-white">Analyse…</span></>)
+              : (<><span className="w-2 h-2 rounded-full" style={{ background: 'var(--green)' }} /><span className="text-xs font-mono text-white">Scan auto</span></>)}
           </div>
-          {addedCount > 0 && (<div className="px-3 py-1.5 rounded-full text-xs font-mono"
-            style={{ background: 'rgba(16,185,129,0.85)', color: 'white' }}>+{addedCount}</div>)}
+          {addedCount > 0 && <div className="px-3 py-1.5 rounded-full text-xs font-mono" style={{ background: 'rgba(16,185,129,0.85)', color: 'white' }}>+{addedCount}</div>}
         </div>
         <div className="absolute pointer-events-none" style={{ left: '5%', right: '5%', top: '55%', bottom: '5%', border: '2px dashed white', borderRadius: 12, opacity: 0.6 }} />
         {ready && matches.length === 0 && manualQuery.length < 2 && (
           <div className="absolute bottom-3 left-0 right-0 text-center pointer-events-none">
-            <p className="inline-block text-xs font-mono px-3 py-1.5 rounded-full text-white"
-              style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)' }}>Place le numéro/nom de la carte dans le cadre</p>
+            <p className="inline-block text-xs font-mono px-3 py-1.5 rounded-full text-white" style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)' }}>
+              Place le numéro de la carte dans le cadre
+            </p>
           </div>
         )}
       </div>
@@ -97,15 +103,13 @@ export function ScanPage({ onClose, onScanned, onAddExisting }) {
               style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
               <CardImage src={card.image_url} alt={getDisplayName(card)} size="md" />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <GameIcon game={card.game} size={11} /><RarityChip rarity={card.rarity} />
-                </div>
+                <div className="flex items-center gap-1.5 mb-0.5"><GameIcon game={card.game} size={11} /><RarityChip rarity={card.rarity} /></div>
                 <p className="font-medium text-sm truncate" style={{ color: 'var(--text)' }}>{getDisplayName(card)}</p>
                 <p className="text-[11px] font-mono mt-0.5" style={{ color: 'var(--muted)' }}>{card.card_number}</p>
               </div>
               <div className="self-center">
                 {adding ? <Loader size={18} className="animate-spin" style={{ color: 'var(--accent)' }} />
-                : <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#7C3AED,#9333EA)', color: 'white' }}><Check size={16} /></div>}
+                  : <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#7C3AED,#9333EA)', color: 'white' }}><Check size={16} /></div>}
               </div>
             </button>
           ))}
@@ -113,8 +117,7 @@ export function ScanPage({ onClose, onScanned, onAddExisting }) {
         {suggestions.length === 0 && manualQuery.length < 2 && (
           <div className="text-center pt-6 pb-4">
             <p className="text-sm" style={{ color: 'var(--muted)' }}>{ready ? '👀 Cadre une carte devant la caméra' : 'Préparation du scanner…'}</p>
-            {debug.ocr && (<p className="text-[10px] font-mono mt-3 px-2 py-1 inline-block rounded"
-              style={{ color: 'var(--muted)', opacity: 0.5, background: 'var(--card)' }}>OCR: {debug.ocr}</p>)}
+            {debug.ocr && <p className="text-[10px] font-mono mt-3 px-2 py-1 inline-block rounded" style={{ color: 'var(--muted)', opacity: 0.5, background: 'var(--card)' }}>OCR: {debug.ocr}</p>}
           </div>
         )}
       </div>
