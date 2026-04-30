@@ -1,4 +1,3 @@
-// src/components/EditEntryModal.jsx
 import { useState } from 'react'
 import { X, Loader, ChevronDown, Trash2 } from 'lucide-react'
 import { CardImage } from './CardImage'
@@ -7,10 +6,7 @@ import { GameIcon, GAME_LABEL, GAME_COLOR } from './GameIcon'
 import { formatPrice, getDisplayName } from '../lib/format'
 
 const CONDITIONS = ['M', 'NM', 'EX', 'GD', 'LP', 'PL', 'P']
-const CONDITION_LABELS = {
-  M: 'Mint', NM: 'Near Mint', EX: 'Excellent', GD: 'Good',
-  LP: 'Light Played', PL: 'Played', P: 'Poor',
-}
+const CONDITION_LABELS = { M: 'Mint', NM: 'Near Mint', EX: 'Excellent', GD: 'Good', LP: 'Light Played', PL: 'Played', P: 'Poor' }
 
 export function EditEntryModal({ entry, onClose, onSave, onDelete }) {
   const [form, setForm] = useState({ condition: entry.condition || 'NM', quantity: entry.quantity || 1 })
@@ -24,7 +20,6 @@ export function EditEntryModal({ entry, onClose, onSave, onDelete }) {
     if (err) setError(err)
     setLoading(false)
   }
-
   const gameLabel = GAME_LABEL[entry.game] || entry.game
   const gameColor = GAME_COLOR[entry.game] || 'var(--muted)'
 
@@ -37,11 +32,9 @@ export function EditEntryModal({ entry, onClose, onSave, onDelete }) {
         <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--border)' }} />
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display font-bold text-lg" style={{ color: 'var(--text)' }}>Modifier</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ background: 'var(--bg)', color: 'var(--muted)' }}><X size={16} /></button>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'var(--bg)', color: 'var(--muted)' }}><X size={16} /></button>
         </div>
-        <div className="rounded-xl p-3 mb-5 flex gap-3 items-start"
-          style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <div className="rounded-xl p-3 mb-5 flex gap-3 items-start" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
           <CardImage src={entry.image_url} alt={getDisplayName(entry)} size="lg" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1">
@@ -61,8 +54,7 @@ export function EditEntryModal({ entry, onClose, onSave, onDelete }) {
         </div>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-mono tracking-widest uppercase mb-2 block" style={{ color: 'var(--muted)' }}>État</label>
+            <Field label="État">
               <div className="relative">
                 <select value={form.condition} onChange={e => set('condition', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl text-sm outline-none appearance-none"
@@ -71,15 +63,14 @@ export function EditEntryModal({ entry, onClose, onSave, onDelete }) {
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--muted)' }} />
               </div>
-            </div>
-            <div>
-              <label className="text-xs font-mono tracking-widest uppercase mb-2 block" style={{ color: 'var(--muted)' }}>Quantité</label>
+            </Field>
+            <Field label="Quantité">
               <input type="number" min="1" max="99" value={form.quantity} onChange={e => set('quantity', e.target.value)}
                 className="w-full px-4 py-3 rounded-xl text-sm outline-none"
                 style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-            </div>
+            </Field>
           </div>
-          {error && (<p className="text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.3)' }}>⚠️ {error}</p>)}
+          {error && <p className="text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.3)' }}>⚠️ {error}</p>}
           <button onClick={handleSave} disabled={loading}
             className="w-full py-4 rounded-2xl font-display font-bold text-base transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
             style={{ background: 'linear-gradient(135deg,#7C3AED,#9333EA)', color: 'white', boxShadow: '0 4px 24px rgba(124,58,237,0.4)' }}>
@@ -92,6 +83,14 @@ export function EditEntryModal({ entry, onClose, onSave, onDelete }) {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+function Field({ label, children }) {
+  return (
+    <div>
+      <label className="text-xs font-mono tracking-widest uppercase mb-2 block" style={{ color: 'var(--muted)' }}>{label}</label>
+      {children}
     </div>
   )
 }
