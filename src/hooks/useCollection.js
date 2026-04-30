@@ -1,4 +1,4 @@
-// src/hooks/useCollection.js
+// src/hooks/useCollection.js — V5 (sans purchase_price)
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../services/supabase'
 
@@ -19,24 +19,21 @@ export function useCollection(userId) {
 
   const fetchCollection = useCallback(async () => {
     if (!userId) return
-    setLoading(true); setError(null)
+    setLoading(true)
+    setError(null)
     try {
-      const { data: items, error: collErr } = await supabase
-        .from('user_collection')
-        .select(`id, condition, quantity, card_id, cards ( id, name, name_fr, game, set_code, card_number, rarity, image_url )`)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+      const { data: items, error: collErr } = await supabase.from('user_collection')
+        .select(`id, condition, quantity, card_id, cards (id, name, name_fr, game, set_code, card_number, rarity, image_url)`)
+        .eq('user_id', userId).order('created_at', { ascending: false })
       if (collErr) throw new Error(collErr.message)
       const cardIds = (items || []).map(i => i.card_id)
       const pricesByCard = {}
       if (cardIds.length > 0) {
-        const { data: pricesData, error: pricesErr } = await supabase
-          .from('prices').select('card_id, price_trend, price_avg, price_low, last_updated, currency')
+        const { data: pricesData, error: pricesErr } = await supabase.from('prices')
+          .select('card_id, price_trend, price_avg, price_low, last_updated, currency')
           .in('card_id', cardIds).order('last_updated', { ascending: false })
         if (pricesErr) throw new Error(pricesErr.message)
-        for (const p of (pricesData || [])) {
-          if (!pricesByCard[p.card_id]) pricesByCard[p.card_id] = p
-        }
+        for (const p of (pricesData || [])) if (!pricesByCard[p.card_id]) pricesByCard[p.card_id] = p
       }
       const flat = (items || []).map(item => {
         const price = pricesByCard[item.card_id] || null
@@ -45,8 +42,9 @@ export function useCollection(userId) {
           name: item.cards?.name, name_fr: item.cards?.name_fr, game: item.cards?.game,
           set_code: item.cards?.set_code, card_number: item.cards?.card_number,
           rarity: item.cards?.rarity, image_url: item.cards?.image_url,
-          price_trend: price?.price_trend ?? 0, price_avg: price?.price_avg ?? 0, price_low: price?.price_low ?? 0,
-          price_currency: price?.currency ?? 'EUR', price_last_updated: price?.last_updated ?? null,
+          price_trend: price?.price_trend ?? 0, price_avg: price?.price_avg ?? 0,
+          price_low: price?.price_low ?? 0, price_currency: price?.currency ?? 'EUR',
+          price_last_updated: price?.last_updated ?? null,
         }
       })
       setCollection(flat)
@@ -59,28 +57,30 @@ export function useCollection(userId) {
   const addCard = useCallback(async (cardData) => {
     if (!userId) return { error: 'Non connecté' }
     try {
-      const { data: existing, error: lookupErr } = await supabase
-        .from('cards').select('id, name, name_fr, game, set_code, card_number, rarity, image_url')
+      const { data: existing } = await supabase.from('cards')
+        .select('id, name, name_fr, game, set_code, card_number, rarity, image_url')
         .eq('card_number', cardData.card_number).eq('game', cardData.game).maybeSingle()
-      if (lookupErr) throw new Error(lookupErr.message)
       let cardInfo = existing
       if (!cardInfo) {
         const { data: newCard, error: insertErr } = await supabase.from('cards').insert({
           name: cardData.name, game: cardData.game, set_code: cardData.set_code || '',
-          card_number: cardData.card_number, rarity: cardData.rarity || null, image_url: cardData.image_url || null,
+          card_number: cardData.card_number, rarity: cardData.rarity || null,
+          image_url: cardData.image_url || null,
         }).select('id, name, name_fr, game, set_code, card_number, rarity, image_url').single()
         if (insertErr) throw new Error(insertErr.message)
         cardInfo = newCard
       }
       const { data: upserted, error: upsertErr } = await supabase.from('user_collection').upsert({
-        user_id: userId, card_id: cardInfo.id, condition: cardData.condition || 'NM',
+        user_id: userId, card_id: cardInfo.id,
+        condition: cardData.condition || 'NM',
         quantity: parseInt(cardData.quantity, 10) || 1,
       }, { onConflict: 'user_id,card_id,condition' }).select('id, condition, quantity, card_id').single()
       if (upsertErr) throw new Error(upsertErr.message)
       const newEntry = {
         id: upserted.id, card_id: upserted.card_id, condition: upserted.condition, quantity: upserted.quantity,
-        name: cardInfo.name, name_fr: cardInfo.name_fr, game: cardInfo.game, set_code: cardInfo.set_code,
-        card_number: cardInfo.card_number, rarity: cardInfo.rarity, image_url: cardInfo.image_url,
+        name: cardInfo.name, name_fr: cardInfo.name_fr, game: cardInfo.game,
+        set_code: cardInfo.set_code, card_number: cardInfo.card_number,
+        rarity: cardInfo.rarity, image_url: cardInfo.image_url,
         price_trend: 0, price_avg: 0, price_low: 0, price_currency: 'EUR', price_last_updated: null,
       }
       setCollection(prev => {
@@ -90,21 +90,20 @@ export function useCollection(userId) {
       })
       fetchCollection()
       return { error: null }
-    } catch (err) { return { error: err.message || 'Erreur d\'ajout' } }
+    } catch (err) { return { error: err.message || 'Erreur' } }
   }, [userId, fetchCollection])
 
   const addExistingCard = useCallback(async ({ card_id, cardInfo = null, condition = 'NM', quantity = 1 }) => {
     if (!userId) return { error: 'Non connecté' }
     if (!card_id) return { error: 'card_id manquant' }
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    const optimisticEntry = {
+    setCollection(prev => [{
       id: tempId, card_id, condition, quantity: parseInt(quantity, 10) || 1,
       name: cardInfo?.name, name_fr: cardInfo?.name_fr, game: cardInfo?.game,
-      set_code: cardInfo?.set_code, card_number: cardInfo?.card_number, rarity: cardInfo?.rarity,
-      image_url: cardInfo?.image_url, price_trend: 0, price_avg: 0, price_low: 0,
-      price_currency: 'EUR', price_last_updated: null, _pending: true,
-    }
-    setCollection(prev => [optimisticEntry, ...prev])
+      set_code: cardInfo?.set_code, card_number: cardInfo?.card_number,
+      rarity: cardInfo?.rarity, image_url: cardInfo?.image_url,
+      price_trend: 0, price_avg: 0, price_low: 0, price_currency: 'EUR', price_last_updated: null, _pending: true,
+    }, ...prev])
     try {
       const { data: upserted, error: upsertErr } = await supabase.from('user_collection').upsert({
         user_id: userId, card_id, condition, quantity: parseInt(quantity, 10) || 1,
@@ -115,7 +114,7 @@ export function useCollection(userId) {
       return { error: null }
     } catch (err) {
       setCollection(prev => prev.filter(c => c.id !== tempId))
-      return { error: err.message || 'Erreur d\'ajout' }
+      return { error: err.message || 'Erreur' }
     }
   }, [userId, fetchCollection])
 
@@ -139,7 +138,7 @@ export function useCollection(userId) {
       return { error: null }
     } catch (err) {
       setCollection(prev => prev.map(c => c.id === collectionId ? prevSnapshot : c))
-      return { error: err.message || 'Erreur de mise à jour' }
+      return { error: err.message || 'Erreur' }
     }
   }, [userId])
 
@@ -157,7 +156,7 @@ export function useCollection(userId) {
       return { error: null }
     } catch (err) {
       if (removed) setCollection(prev => { const next = [...prev]; next.splice(Math.min(removedIndex, next.length), 0, removed); return next })
-      return { error: err.message || 'Erreur de suppression' }
+      return { error: err.message || 'Erreur' }
     }
   }, [userId])
 
@@ -176,8 +175,7 @@ export function useCollection(userId) {
     if (!snapshot) return
     setCollection(prev => {
       if (prev.some(c => c.id === snapshot.id)) return prev
-      const next = [...prev]; next.splice(Math.min(Math.max(index, 0), next.length), 0, snapshot)
-      return next
+      const next = [...prev]; next.splice(Math.min(Math.max(index, 0), next.length), 0, snapshot); return next
     })
   }, [])
 
@@ -188,7 +186,7 @@ export function useCollection(userId) {
       return { error: null }
     } catch (err) {
       if (snapshotForRollback) restoreLocally(snapshotForRollback)
-      return { error: err.message || 'Erreur de suppression' }
+      return { error: err.message || 'Erreur' }
     }
   }, [userId, restoreLocally])
 
